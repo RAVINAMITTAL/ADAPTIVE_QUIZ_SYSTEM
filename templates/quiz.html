@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'setup' %}New Quiz{% else %}Take Quiz{% endif %} | AdaptiveQuiz{% endblock %}
+
+{% block content %}
+{% if mode == "setup" %}
+<div class="row justify-content-center animate-fade-in">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="bi bi-lightning-charge-fill text-warning me-2"></i>
+                    Create New Quiz
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="post" id="quizSetupForm">
+
+                    <!-- Topic Selection with Chips -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-tag me-1"></i>Select Topic
+                        </label>
+                        <div class="topic-chips" id="topicChips">
+                            {% if suggested_topics %}
+                            {% for topic in suggested_topics %}
+                            <div class="topic-chip" data-topic="{{ topic }}">
+                                <i class="bi bi-book"></i>{{ topic }}
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <input type="text" name="topic" id="topicInput" class="form-control mt-2"
+                            placeholder="Or type a custom topic..." required>
+                    </div>
+
+                    <!-- Number of Questions -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-list-numbers me-1"></i>Number of Questions
+                        </label>
+                        <select name="num_questions" class="form-select">
+                            <option value="3">3 Questions</option>
+                            <option value="5" selected>5 Questions</option>
+                            <option value="10">10 Questions</option>
+                            <option value="15">15 Questions</option>
+                        </select>
+                    </div>
+
+                    <!-- Subtopic (Optional) -->
+                    <div class="mb-4">
+                        <label class="form-label">
+                            <i class="bi bi-bookmark me-1"></i>Subtopic (optional)
+                        </label>
+                        <input type="text" name="subtopic" class="form-control"
+                            placeholder="e.g. Deadlocks, Threads, SQL Queries">
+                    </div>
+
+                    <!-- Difficulty Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-speedometer me-1"></i>Difficulty Level
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="difficulty" value=""
+                                        id="diffAuto" checked>
+                                    <label class="form-check-label" for="diffAuto">
+                                        <span class="difficulty-badge"
+                                            style="background: var(--gradient-primary); color: white;">
+                                            <i class="bi bi-magic me-1"></i>Auto (AI)
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            {% if difficulty_levels %}
+                            {% for level in difficulty_levels %}
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="difficulty" value="{{ level }}"
+                                        id="diff{{ level }}">
+                                    <label class="form-check-label" for="diff{{ level }}">
+                                        <span class="difficulty-badge {{ level|lower }}">{{ level }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- ML Model Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-cpu me-1"></i>Adaptive ML Model
+                        </label>
+                        <select name="ml_model" class="form-select">
+                            <option value="logistic" selected>Logistic Regression (Recommended)</option>
+                            <option value="tree">Decision Tree</option>
+                            <option value="rule">Rule-Based (Simple)</option>
+                        </select>
+                        <small class="text-muted">
+                            ML model determines difficulty based on your performance history.
+                        </small>
+                    </div>
+
+                    <button type="submit" class="btn btn-gradient-success w-100 py-3">
+                        <i class="bi bi-play-fill me-2"></i>Generate & Start Quiz
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const chips = document.querySelectorAll('.topic-chip');
+        const input = document.getElementById('topicInput');
+
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                chips.forEach(c => c.classList.remove('selected'));
+                chip.classList.add('selected');
+                input.value = chip.dataset.topic;
+            });
+        });
+
+        input.addEventListener('input', () => {
+            if (!Array.from(chips).some(c => c.dataset.topic === input.value)) {
+                chips.forEach(c => c.classList.remove('selected'));
+            }
+        });
+    });
+</script>
+
+{% elif mode == "take" %}
+<div class="animate-fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-1">{{ attempt.topic }}</h3>
+            {% if session.subtopic %}
+            <small class="text-muted">Subtopic: {{ session.subtopic }}</small>
+            {% endif %}
+            <span class="difficulty-badge {{ attempt.difficulty|lower }}">{{ attempt.difficulty }}</span>
+            <span class="badge bg-info ms-2">{{ questions|length }} Questions</span>
+        </div>
+    </div>
+
+    <form method="post" id="quizForm">
+        <input type="hidden" name="time_taken_sec" id="time_taken_sec" value="0">
+
+        {% for q in questions %}
+        <div class="card question-card {{ q.difficulty|lower }} mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-4">
+                    <span class="badge bg-primary rounded-pill me-2">Q{{ loop.index }}</span>
+                    {{ q.question_text }}
+                </h5>
+
+                <div class="options-container">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="A" id="q{{ q.id }}_A">
+                        <label class="form-check-label option-label" for="q{{ q.id }}_A">
+                            <span class="option-letter">A</span>
+                            {{ q.option_a }}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="B" id="q{{ q.id }}_B">
+                        <label class="form-check-label option-label" for="q{{ q.id }}_B">
+                            <span class="option-letter">B</span>
+                            {{ q.option_b }}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="C" id="q{{ q.id }}_C">
+                        <label class="form-check-label option-label" for="q{{ q.id }}_C">
+                            <span class="option-letter">C</span>
+                            {{ q.option_c }}
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q_{{ q.id }}" value="D" id="q{{ q.id }}_D">
+                        <label class="form-check-label option-label" for="q{{ q.id }}_D">
+                            <span class="option-letter">D</span>
+                            {{ q.option_d }}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-gradient-success btn-lg px-5">
+                <i class="bi bi-check2-circle me-2"></i>Submit Quiz
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    window.QUIZ_DURATION_SEC = 300; // 5 minutes
+
+
+    // Radio button selection styling
+    document.querySelectorAll('.form-check-input').forEach(radio => {
+        radio.addEventListener('change', function () {
+            // Remove selected from siblings
+            this.parentElement.parentElement.querySelectorAll('.option-label').forEach(label => {
+                label.classList.remove('selected');
+            });
+            // Add to selected
+            this.nextElementSibling.classList.add('selected');
+        });
+    });
+
+    // Click label to select radio
+    document.querySelectorAll('.option-label').forEach(label => {
+        label.addEventListener('click', function () {
+            const radio = this.querySelector('.form-check-input');
+            if (radio) radio.click();
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

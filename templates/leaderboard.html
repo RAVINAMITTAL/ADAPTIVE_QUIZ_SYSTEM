@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard | AdaptiveQuiz{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+    <h2 class="fw-bold mb-4">
+        <i class="bi bi-trophy-fill text-warning me-2"></i>Leaderboard
+    </h2>
+
+    <!-- Your Badge -->
+    {% if user_badge %}
+    <div class="alert alert-success mb-4">
+        <h5 class="mb-0">
+            🎖️ Your Badge: <strong>{{ user_badge }}</strong> ({{ user_quiz_count }} quizzes)
+        </h5>
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-4">
+        Complete 5 quizzes to earn your Bronze badge! ({{ user_quiz_count }}/5)
+    </div>
+    {% endif %}
+
+    <!-- Topic Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-8">
+                    <select name="topic" class="form-select">
+                        <option value="">All Topics</option>
+                        {% for topic in topics %}
+                        <option value="{{ topic }}" {% if topic==selected_topic %}selected{% endif %}>{{ topic }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leaderboard Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                {% if selected_topic %}Top 10 - {{ selected_topic }}{% else %}Top 10 Overall{% endif %}
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Rank</th>
+                            <th>User</th>
+                            <th>Quizzes</th>
+                            <th>Avg Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if selected_topic %}
+                        {% set stats = topic_stats %}
+                        {% else %}
+                        {% set stats = users_stats %}
+                        {% endif %}
+
+                        {% if stats %}
+                        {% for user in stats %}
+                        <tr {% if user.id==current_user.id %}class="table-success" {% endif %}>
+                            <td>
+                                {% if loop.index == 1 %}
+                                🥇
+                                {% elif loop.index == 2 %}
+                                🥈
+                                {% elif loop.index == 3 %}
+                                🥉
+                                {% else %}
+                                {{ loop.index }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ user.name }}</strong>
+                                {% if user.id == current_user.id %}
+                                <span class="badge bg-info ms-2">You</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.total_quizzes }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2"
+                                        style="width: 100px; --accuracy: {{ acc_val }}%;">
+                                        <div class="progress-bar bg-success"></div>
+                                    </div>
+
+                                    <strong>{{ (user.avg_accuracy * 100)|round(0)|int }}%</strong>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-5">
+                                <i class="bi bi-inbox display-4 d-block mb-3 opacity-25"></i>
+                                <p>No quiz data yet. Complete some quizzes to appear on the leaderboard!</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+
+<body>
+    <h3>Quiz Result - {{ attempt.topic }}</h3>
+    <p>Hello {{ user.name }},</p>
+    <p>Your recent quiz details:</p>
+    <ul>
+        <li>Topic: {{ attempt.topic }}</li>
+        <li>Difficulty: {{ attempt.difficulty }}</li>
+        <li>Score: {{ attempt.score }}/{{ attempt.total_questions }}</li>
+        <li>Time taken: {{ attempt.time_taken_sec }} sec</li>
+    </ul>
+
+    {% if weak_topics %}
+    <p><strong>Weak topics:</strong> {{ ", ".join(weak_topics) }}</p>
+    {% else %}
+    <p>Great job! No weak topics detected in this attempt.</p>
+    {% endif %}
+
+    <p>Recommended next quiz: {{ recommended_next }}</p>
+</body>
+
+</html>
